@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import ConditionalNavbar from '@/components/ConditionalNavbar';
+import ClerkProviderWrapper from '@/components/ClerkProviderWrapper';
 
 export const metadata: Metadata = {
   title: 'StoryRama',
@@ -15,8 +16,10 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body>
-        <ConditionalNavbar />
-        {children}
+        <ClerkProviderWrapper>
+          <ConditionalNavbar />
+          {children}
+        </ClerkProviderWrapper>
       </body>
     </html>
   );

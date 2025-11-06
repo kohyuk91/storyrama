@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useUser } from '@clerk/nextjs';
 import { supabase } from '@/lib/supabase';
 
 interface CreateProjectModalProps {
@@ -21,6 +22,7 @@ const artStyles = [
 ];
 
 export default function CreateProjectModal({ isOpen, onClose, onProjectCreated }: CreateProjectModalProps) {
+  const { user } = useUser();
   const [projectName, setProjectName] = useState('');
   const [aspectRatio, setAspectRatio] = useState<'16:9' | '1:1' | '9:16'>('16:9');
   const [selectedArtStyle, setSelectedArtStyle] = useState<string>('Cinematic');
@@ -46,6 +48,11 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated }
   const handleCreate = async () => {
     if (!isProjectNameValid || isLoading) return;
     
+    if (!user?.id) {
+      setError('User not authenticated');
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
 
@@ -57,6 +64,7 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated }
             name: projectName.trim(),
             aspect_ratio: aspectRatio,
             art_style: selectedArtStyle,
+            user_id: user.id,
           },
         ])
         .select()
@@ -67,6 +75,41 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated }
       }
 
       console.log('Project created successfully:', data);
+      
+      // Create default SCENE 1 for the new project
+      if (data?.id) {
+        const { data: newScene, error: sceneError } = await supabase
+          .from('scenes')
+          .insert([
+            {
+              project_id: data.id,
+              name: 'SCENE 1',
+              order_index: 0,
+            },
+          ])
+          .select()
+          .single();
+
+        if (sceneError) {
+          console.error('Error creating default scene:', sceneError);
+          // Don't throw error, just log it - project is still created
+        } else if (newScene?.id) {
+          // Create default SHOT 1 for the new scene
+          const { error: shotError } = await supabase
+            .from('shots')
+            .insert([
+              {
+                scene_id: newScene.id,
+                order_index: 0,
+              },
+            ]);
+
+          if (shotError) {
+            console.error('Error creating default shot:', shotError);
+            // Don't throw error, just log it - scene is still created
+          }
+        }
+      }
       
       // Reset form
       setProjectName('');

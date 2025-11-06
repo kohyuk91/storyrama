@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
 import CreateProjectModal from '@/components/CreateProjectModal';
 import { supabase } from '@/lib/supabase';
 
@@ -16,6 +17,7 @@ interface Project {
 
 export default function ProjectsPage() {
   const router = useRouter();
+  const { user } = useUser();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -25,11 +27,17 @@ export default function ProjectsPage() {
   // Fetch projects from database
   useEffect(() => {
     const fetchProjects = async () => {
+      if (!user?.id) {
+        setIsLoading(false);
+        return;
+      }
+
       try {
         setIsLoading(true);
         const { data, error } = await supabase
           .from('projects')
           .select('*')
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -45,7 +53,7 @@ export default function ProjectsPage() {
     };
 
     fetchProjects();
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -66,10 +74,13 @@ export default function ProjectsPage() {
   const handleProjectCreated = () => {
     // Refresh projects list after creation
     const fetchProjects = async () => {
+      if (!user?.id) return;
+
       try {
         const { data, error } = await supabase
           .from('projects')
           .select('*')
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -92,6 +103,45 @@ export default function ProjectsPage() {
     } else {
       console.log(`Create ${type} project`);
       // AI Guided 프로젝트 생성 로직 추가
+    }
+  };
+
+  const handleDeleteProject = async (projectId: string, projectName: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click event
+    
+    if (!confirm(`Are you sure you want to delete "${projectName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    if (!user?.id) return;
+
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', projectId)
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error deleting project:', error);
+        alert('Failed to delete project');
+      } else {
+        // Refresh projects list
+        const { data, error: fetchError } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (fetchError) {
+          console.error('Error fetching projects:', fetchError);
+        } else {
+          setProjects(data || []);
+        }
+      }
+    } catch (err) {
+      console.error('Error deleting project:', err);
+      alert('Failed to delete project');
     }
   };
 
@@ -160,8 +210,29 @@ export default function ProjectsPage() {
                 <div
                   key={project.id}
                   onClick={() => router.push(`/projects/${project.id}`)}
-                  className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 hover:border-pink-500 hover:shadow-[0_0_20px_rgba(236,72,153,0.5)] transition-all duration-300 cursor-pointer"
+                  className="group relative bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 hover:border-pink-500 hover:shadow-[0_0_20px_rgba(236,72,153,0.5)] transition-all duration-300 cursor-pointer"
                 >
+                  {/* Delete Button - Appears on hover */}
+                  <button
+                    onClick={(e) => handleDeleteProject(project.id, project.name, e)}
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-2 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-lg z-10"
+                    title="Delete project"
+                  >
+                    <svg 
+                      className="w-4 h-4" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" 
+                      />
+                    </svg>
+                  </button>
+
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                     {project.name}
                   </h3>
