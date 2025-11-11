@@ -55,10 +55,19 @@ type AnalyzedCharacter = {
   reference_images?: string[] | null;
 };
 
+type AnalyzedShot = {
+  script: string;
+};
+
+type AnalyzedScene = {
+  name: string;
+  shots: AnalyzedShot[];
+};
+
 type CastScenarioAnalysisResult = {
   scenario: string;
   analysis: {
-    scenes: any[];
+    scenes: AnalyzedScene[];
     characters?: AnalyzedCharacter[];
   };
 };
@@ -107,7 +116,7 @@ export default function ProjectPage() {
   const [isGeneratingCharacterImage, setIsGeneratingCharacterImage] = useState(false);
   const castGenerationInProgressRef = useRef(false);
   const castGenerateImagesRef = useRef(castGenerateImages);
-  const [castGeneratingIndices, setCastGeneratingIndices] = useState<Set<number>>(new Set());
+  const [castGeneratingIndices, setCastGeneratingIndices] = useState<Set<number>>(new Set<number>());
 
   useEffect(() => {
     castGenerateImagesRef.current = castGenerateImages;
@@ -716,14 +725,6 @@ export default function ProjectPage() {
     setShowCharacterModal(true);
   };
 
-  const handleEditCharacter = (index: number) => {
-    setEditingCharacterIndex(index);
-    const char = characters[index];
-    setEditingCharacter({ ...char });
-    setEditingDescription(char.description || '');
-    setEditingClothes(char.clothes || '');
-  };
-
   if (isLoading) {
     return (
       <>
@@ -1139,7 +1140,8 @@ export default function ProjectPage() {
                         throw new Error(errorData.error || 'Failed to analyze scenario');
                       }
 
-                      const { analysis } = await response.json();
+                      const apiResponse = await response.json();
+                      const analysis = apiResponse.analysis as CastScenarioAnalysisResult['analysis'];
 
                       if (!analysis || !analysis.scenes || analysis.scenes.length === 0) {
                         alert('No scenes found in the scenario');
@@ -1156,10 +1158,10 @@ export default function ProjectPage() {
                       sessionStorage.setItem(`scenario_analysis_${projectId}`, JSON.stringify(scenarioAnalysis));
 
                       // Load characters and open CAST modal
-                      setCastCharacters(analysis.characters || []);
+                      setCastCharacters((analysis.characters || []) as AnalyzedCharacter[]);
                       setCastScenarioAnalysis(scenarioAnalysis);
                       setCastGenerateImages(true);
-                      setCastGeneratingIndices(() => new Set());
+                      setCastGeneratingIndices(() => new Set<number>());
 
                       // Close scenario modal and open CAST modal
                       setScenarioText('');
