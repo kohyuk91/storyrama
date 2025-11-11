@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import CreateProjectModal from '@/components/CreateProjectModal';
@@ -18,11 +18,9 @@ interface Project {
 export default function ProjectsPage() {
   const router = useRouter();
   const { user } = useUser();
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Fetch projects from database
   useEffect(() => {
@@ -55,22 +53,6 @@ export default function ProjectsPage() {
     fetchProjects();
   }, [user?.id]);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
-      }
-    };
-
-    if (isDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isDropdownOpen]);
-
   const handleProjectCreated = () => {
     // Refresh projects list after creation
     const fetchProjects = async () => {
@@ -96,15 +78,6 @@ export default function ProjectsPage() {
     fetchProjects();
   };
 
-  const handleCreateProject = (type: 'ai-guided' | 'blank') => {
-    setIsDropdownOpen(false);
-    if (type === 'blank') {
-      setIsModalOpen(true);
-    } else {
-      console.log(`Create ${type} project`);
-      // AI Guided 프로젝트 생성 로직 추가
-    }
-  };
 
   const handleDeleteProject = async (projectId: string, projectName: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click event
@@ -148,51 +121,10 @@ export default function ProjectsPage() {
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-8">
+        <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             My Projects
           </h1>
-          <div className="relative" ref={dropdownRef}>
-            <button
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors shadow-sm flex items-center gap-2"
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            >
-              + Create Project
-              <svg
-                className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            
-            {isDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10">
-                <div className="py-1">
-                  <button
-                    className="w-full text-left px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg"
-                    onClick={() => handleCreateProject('ai-guided')}
-                  >
-                    <div className="font-medium">AI Guided Project</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                      AI의 도움을 받아 프로젝트 생성
-                    </div>
-                  </button>
-                  <button
-                    className="w-full text-left px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors last:rounded-b-lg"
-                    onClick={() => handleCreateProject('blank')}
-                  >
-                    <div className="font-medium">Blank Project</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                      빈 프로젝트로 시작
-                    </div>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
         
         <div className="mt-8">
@@ -200,12 +132,19 @@ export default function ProjectsPage() {
             <div className="text-center py-12">
               <p className="text-gray-500 dark:text-gray-400">Loading projects...</p>
             </div>
-          ) : projects.length === 0 ? (
-            <p className="text-gray-500 dark:text-gray-400 text-center py-12">
-              No projects yet. Create your first project!
-            </p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* New Project Card */}
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="flex flex-col items-center justify-center bg-gray-800 border-2 border-white rounded-lg cursor-pointer hover:bg-gray-700 transition-colors p-6 gap-2 group relative"
+              >
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <p className="text-white text-sm">New Project</p>
+              </button>
+              
               {projects.map((project) => (
                 <div
                   key={project.id}
