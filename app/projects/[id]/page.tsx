@@ -47,6 +47,22 @@ interface Character {
   updated_at: string;
 }
 
+type AnalyzedCharacter = {
+  name: string;
+  description?: string;
+  clothes?: string;
+  image_url?: string | null;
+  reference_images?: string[] | null;
+};
+
+type CastScenarioAnalysisResult = {
+  scenario: string;
+  analysis: {
+    scenes: any[];
+    characters?: AnalyzedCharacter[];
+  };
+};
+
 export default function ProjectPage() {
   const params = useParams();
   const router = useRouter();
@@ -64,8 +80,8 @@ export default function ProjectPage() {
   const [generatingShotIds, setGeneratingShotIds] = useState<Set<string>>(new Set());
   const [generateImages, setGenerateImages] = useState(true);
   const [showCastModal, setShowCastModal] = useState(false);
-  const [castCharacters, setCastCharacters] = useState<any[]>([]);
-  const [castScenarioAnalysis, setCastScenarioAnalysis] = useState<any>(null);
+  const [castCharacters, setCastCharacters] = useState<AnalyzedCharacter[]>([]);
+  const [castScenarioAnalysis, setCastScenarioAnalysis] = useState<CastScenarioAnalysisResult | null>(null);
   const [isProcessingCast, setIsProcessingCast] = useState(false);
   const [castProcessingStatus, setCastProcessingStatus] = useState<string>('');
   const [castGenerateImages, setCastGenerateImages] = useState(true);
@@ -97,12 +113,12 @@ export default function ProjectPage() {
     castGenerateImagesRef.current = castGenerateImages;
   }, [castGenerateImages]);
 
-  const autoGenerateCastImages = useCallback(async (analysis: any) => {
+  const autoGenerateCastImages = useCallback(async (analysis: CastScenarioAnalysisResult) => {
     if (!castGenerateImagesRef.current) return;
     if (!analysis || !analysis.analysis?.characters?.length) return;
     if (castGenerationInProgressRef.current) return;
 
-    const characters: any[] = analysis.analysis.characters;
+    const characters: AnalyzedCharacter[] = analysis.analysis.characters || [];
     const pending = characters
       .map((char, index) => ({ char, index }))
       .filter(({ char }) => !char?.image_url && (char?.description || char?.clothes));
@@ -1133,9 +1149,9 @@ export default function ProjectPage() {
                       }
 
                       // Store analysis result in sessionStorage
-                      const scenarioAnalysis = {
+                      const scenarioAnalysis: CastScenarioAnalysisResult = {
                         scenario: scenarioText,
-                        analysis: analysis,
+                        analysis: analysis as CastScenarioAnalysisResult['analysis'],
                       };
                       sessionStorage.setItem(`scenario_analysis_${projectId}`, JSON.stringify(scenarioAnalysis));
 
